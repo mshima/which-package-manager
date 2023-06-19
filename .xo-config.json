@@ -1,0 +1,25 @@
+{
+  "space": true,
+  "envs": ["es2022", "node"],
+  "prettier": true,
+  "ignores": ["coverage", "dist"],
+  "printWidth": 120,
+  "rules": {},
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
+  "overrides": [
+    {
+      "files": "src/*",
+      "rules": {}
+    },
+    {
+      "files": "test/*",
+      "rules": {
+        "import/extensions": "off",
+        "import/no-extraneous-dependencies": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off"
+      }
+    }
+  ]
+}

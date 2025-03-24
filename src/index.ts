@@ -1,9 +1,10 @@
+import { exec } from 'node:child_process';
 import { readFile, stat } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import process from 'node:process';
+import { promisify } from 'node:util';
 import micromatch from 'micromatch';
 import { findUp } from 'find-up';
-import { execaCommand } from 'execa';
 import type { PackageJson } from 'type-fest';
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn';
@@ -174,9 +175,10 @@ export const whichPackageManager = async ({
       }
 
       try {
+        const promise = promisify(exec)(`${pm} --version`);
         // eslint-disable-next-line no-await-in-loop
-        const result = await execaCommand(`${pm} -v`);
-        if (result.exitCode === 0) {
+        await promise;
+        if (promise.child.exitCode === 0) {
           return pm;
         }
         /* c8 ignore next */

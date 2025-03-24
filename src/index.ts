@@ -175,7 +175,7 @@ export const whichPackageManager = async ({
       }
 
       try {
-        const promise = promisify(exec)(`${pm} --version`);
+        const promise = promisify(exec)(`${pm} -v`);
         // eslint-disable-next-line no-await-in-loop
         await promise;
         if (promise.child.exitCode === 0) {

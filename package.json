@@ -24,9 +24,8 @@
     "test": "vitest run --coverage"
   },
   "dependencies": {
-    "execa": "^7.1.1",
-    "find-up": "^6.3.0",
-    "micromatch": "^4.0.5"
+    "find-up": "^7.0.0",
+    "micromatch": "^4.0.8"
   },
   "devDependencies": {
     "@types/micromatch": "^4.0.2",
@@ -42,6 +41,6 @@
     "yeoman-test": "^8.0.0-rc.1"
   },
   "engines": {
-    "node": "^16.13.0 || >=18.12.0"
+    "node": ">=18"
   }
 }

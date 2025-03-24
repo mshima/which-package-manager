@@ -9,9 +9,12 @@ import type { PackageJson } from 'type-fest';
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn';
 
+type PackageManagerField = { packageManager: string; version?: string };
+
 export type PackageStructure = {
   lockFile?: string;
   compatiblePackageManager?: readonly PackageManager[];
+  packageManagerField?: PackageManagerField;
   workspaceRoot?: string;
 };
 
@@ -27,6 +30,15 @@ const lockFilesForPackageManager: Record<PackageManager, string> = {
   npm: 'package-lock.json',
   pnpm: 'pnpm-lock.yaml',
   yarn: 'yarn.lock',
+};
+
+const getPackageManagerField = (packageJson: PackageJson): PackageManagerField | undefined => {
+  const [packageManager, version] = packageJson.packageManager?.split('@') ?? [];
+  if (packageManager) {
+    return { packageManager: packageManager as PackageManager, version };
+  }
+
+  return undefined;
 };
 
 const isFile = async (file: string): Promise<boolean> => {
@@ -75,14 +87,11 @@ const findLockFile = async (cwd: string): Promise<PackageManager | undefined> =>
   return detectedLockFiles[0];
 };
 
-const checkWorkspaceRoot = async (cwd: string): Promise<DetectWorkspace> => {
-  const packageJsonFile = join(cwd, 'package.json');
-
+const checkWorkspaceRoot = async (cwd: string, packageJson: PackageJson): Promise<DetectWorkspace> => {
   if (await isFile(join(cwd, 'pnpm-workspace.yaml'))) {
     return { isRoot: true, compatiblePackageManager: ['pnpm'], workspaces: ['**'] };
   }
 
-  const packageJson = await getPackageJson(packageJsonFile);
   // Workspaces field is supported by yarn and npm
   if (packageJson.workspaces) {
     const detectWorkspace: DetectWorkspace = { isRoot: true, compatiblePackageManager: [], workspaces: [] };
@@ -106,14 +115,24 @@ const checkWorkspaceRoot = async (cwd: string): Promise<DetectWorkspace> => {
 
 const getWorkspaceRoot = async (
   cwd: string,
-): Promise<undefined | { compatiblePackageManager: PackageManager[]; lockFile: string | undefined; workspaceRoot: string }> => {
+): Promise<
+  | undefined
+  | {
+      compatiblePackageManager: PackageManager[];
+      lockFile: string | undefined;
+      workspaceRoot: string;
+      packageManagerField?: PackageManagerField;
+    }
+> => {
   const packageJsonRoot = await findUp('package.json', { cwd: join(cwd, '..') });
   if (!packageJsonRoot) {
     return undefined;
   }
 
   const workspaceRoot = dirname(packageJsonRoot);
-  const detectWorkspace = await checkWorkspaceRoot(workspaceRoot);
+  const packageJson = await getPackageJson(packageJsonRoot);
+  const packageManagerField = getPackageManagerField(packageJson);
+  const detectWorkspace = await checkWorkspaceRoot(workspaceRoot, packageJson);
   const relativeToPackageJson = relative(workspaceRoot, cwd);
   if (detectWorkspace.isRoot && micromatch.isMatch(relativeToPackageJson, detectWorkspace.workspaces)) {
     const lockFile = await findLockFile(workspaceRoot);
@@ -121,6 +140,7 @@ const getWorkspaceRoot = async (
       compatiblePackageManager: lockFile ? [lockFile] : detectWorkspace.compatiblePackageManager,
       lockFile,
       workspaceRoot,
+      packageManagerField,
     };
   }
 
@@ -128,33 +148,41 @@ const getWorkspaceRoot = async (
 };
 
 export const detectPackageStructure = async ({ cwd = process.cwd() }: { cwd?: string }): Promise<PackageStructure> => {
-  const hasPackageJson = await isFile(join(cwd, 'package.json'));
-  const lockFile = hasPackageJson ? await findLockFile(cwd) : undefined;
+  const packageJsonFile = join(cwd, 'package.json');
+  const hasPackageJson = await isFile(join(packageJsonFile));
+  let packageManagerField;
+  if (hasPackageJson) {
+    const packageJson = await getPackageJson(packageJsonFile);
+    packageManagerField = getPackageManagerField(packageJson);
+    const lockFile = await findLockFile(cwd);
+    if (lockFile) {
+      return {
+        lockFile,
+        compatiblePackageManager: [lockFile],
+        packageManagerField,
+      };
+    }
 
-  if (lockFile) {
-    return {
-      lockFile,
-      compatiblePackageManager: [lockFile],
-    };
-  }
-
-  const detectWorkspace: DetectWorkspace = hasPackageJson ? await checkWorkspaceRoot(cwd) : { isRoot: false };
-  if (detectWorkspace.isRoot) {
-    const { compatiblePackageManager } = detectWorkspace;
-    return { compatiblePackageManager };
+    const detectWorkspace: DetectWorkspace = await checkWorkspaceRoot(cwd, packageJson);
+    if (detectWorkspace.isRoot) {
+      const { compatiblePackageManager } = detectWorkspace;
+      return { compatiblePackageManager, packageManagerField };
+    }
   }
 
   const findWorkspaceRoot = await getWorkspaceRoot(cwd);
   if (findWorkspaceRoot) {
-    const { workspaceRoot, compatiblePackageManager } = findWorkspaceRoot;
+    const { workspaceRoot, compatiblePackageManager, packageManagerField: workspacePackageManagerField } = findWorkspaceRoot;
     return {
       workspaceRoot,
       compatiblePackageManager,
+      packageManagerField: workspacePackageManagerField,
     };
   }
 
   return {
     compatiblePackageManager: packageManagers,
+    packageManagerField,
   };
 };
 
@@ -162,10 +190,23 @@ export const whichPackageManager = async ({
   cwd,
   preferred = [],
   checkExecutable,
-}: { cwd?: string; preferred?: PackageManager[]; checkExecutable?: boolean } = {}): Promise<string | undefined> => {
+  ignorePackageManagerField,
+}: { cwd?: string; preferred?: PackageManager[]; checkExecutable?: boolean; ignorePackageManagerField?: boolean } = {}): Promise<
+  string | undefined
+> => {
   const structure = await detectPackageStructure({ cwd });
   if (structure.compatiblePackageManager?.length === 1) {
     return structure.compatiblePackageManager[0];
+  }
+
+  const packageManagerFromField = structure.packageManagerField?.packageManager;
+  // Package Manager from package.json field should be compatible.
+  if (
+    packageManagerFromField &&
+    !ignorePackageManagerField &&
+    structure.compatiblePackageManager?.includes(packageManagerFromField as any)
+  ) {
+    return packageManagerFromField;
   }
 
   for (const pm of preferred) {

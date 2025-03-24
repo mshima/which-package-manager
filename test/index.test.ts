@@ -167,15 +167,15 @@ describe('whichPackageManager', () => {
       await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
     });
     it('at root', async () => {
-      await expect(whichPackageManager()).rejects.toMatch(/Lock files for multiples package managers found: npm, pnpm, yarn/);
+      await expect(whichPackageManager()).rejects.toThrow(/Lock files for multiples package managers found: npm, pnpm, yarn/);
     });
     it('at package', async () => {
-      await expect(whichPackageManager({ cwd: join(process.cwd(), 'package') })).rejects.toMatch(
+      await expect(whichPackageManager({ cwd: join(process.cwd(), 'package') })).rejects.toThrow(
         /Lock files for multiples package managers found: npm, pnpm, yarn/,
       );
     });
     it('at workspaces/workspace-a', async () => {
-      await expect(whichPackageManager({ cwd: join(process.cwd(), 'workspaces/workspace-a') })).rejects.toMatch(
+      await expect(whichPackageManager({ cwd: join(process.cwd(), 'workspaces/workspace-a') })).rejects.toThrow(
         /Lock files for multiples package managers found: npm, pnpm, yarn/,
       );
     });

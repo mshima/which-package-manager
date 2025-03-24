@@ -79,7 +79,7 @@ const getPackageJson = async (file: string): Promise<PackageJson> => {
 
 const findLockFile = async (cwd: string): Promise<PackageManager | undefined> => {
   const unfilteredLockFiles = await Promise.all(packageManagers.map(async pm => ((await hasLockFile(pm, cwd)) ? pm : undefined)));
-  const detectedLockFiles = unfilteredLockFiles.filter(pm => pm !== undefined) as PackageManager[];
+  const detectedLockFiles = unfilteredLockFiles.filter(pm => pm !== undefined);
   if (detectedLockFiles.length > 1) {
     throw new Error(`Lock files for multiples package managers found: ${detectedLockFiles.join(', ')}`);
   }
@@ -150,7 +150,7 @@ const getWorkspaceRoot = async (
 export const detectPackageStructure = async ({ cwd = process.cwd() }: { cwd?: string }): Promise<PackageStructure> => {
   const packageJsonFile = join(cwd, 'package.json');
   const hasPackageJson = await isFile(join(packageJsonFile));
-  let packageManagerField;
+  let packageManagerField: PackageManagerField | undefined;
   if (hasPackageJson) {
     const packageJson = await getPackageJson(packageJsonFile);
     packageManagerField = getPackageManagerField(packageJson);
@@ -204,7 +204,7 @@ export const whichPackageManager = async ({
   if (
     packageManagerFromField &&
     !ignorePackageManagerField &&
-    structure.compatiblePackageManager?.includes(packageManagerFromField as any)
+    structure.compatiblePackageManager?.includes(packageManagerFromField as PackageManager)
   ) {
     return packageManagerFromField;
   }

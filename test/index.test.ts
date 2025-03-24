@@ -270,4 +270,76 @@ describe('whichPackageManager', () => {
       await expect(whichPackageManager({ cwd: join(process.cwd(), 'not-workspace') })).resolves.toBeUndefined();
     });
   });
+  describe('package.json with packageManager field', async () => {
+    describe('no lock file', async () => {
+      beforeAll(async () => {
+        const files = {
+          'package.json': {
+            packageManager: 'yarn',
+          },
+        };
+        await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
+      });
+      it('should return the field', async () => {
+        await expect(whichPackageManager()).resolves.toBe('yarn');
+      });
+    });
+    describe('with unambiguous package manager support', async () => {
+      beforeAll(async () => {
+        const files = {
+          'package.json': {
+            packageManager: 'yarn',
+          },
+          'package-lock.json': {},
+        };
+        await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
+      });
+      it('should return the lock file package manager', async () => {
+        await expect(whichPackageManager()).resolves.toBe('npm');
+      });
+    });
+    describe('with ambiguous package manager support', async () => {
+      beforeAll(async () => {
+        const files = {
+          'package.json': {
+            private: true,
+            workspaces: [],
+            packageManager: 'yarn',
+          },
+        };
+        await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
+      });
+      it('should return the compatible package manager', async () => {
+        await expect(whichPackageManager()).resolves.toBe('yarn');
+      });
+    });
+    describe('with ambiguous package manager support, and non compatible field', async () => {
+      beforeAll(async () => {
+        const files = {
+          'package.json': {
+            private: true,
+            workspaces: [],
+            packageManager: 'pnpm',
+          },
+        };
+        await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
+      });
+      it('should return the compatible package manager', async () => {
+        await expect(whichPackageManager()).resolves.toBe(undefined);
+      });
+    });
+    describe('with version in packageManager field', async () => {
+      beforeAll(async () => {
+        const files = {
+          'package.json': {
+            packageManager: 'pnpm@1.0.0',
+          },
+        };
+        await helpers.prepareTemporaryDir().withFiles(files).commitFiles();
+      });
+      it('should return the compatible package manager', async () => {
+        await expect(whichPackageManager()).resolves.toBe('pnpm');
+      });
+    });
+  });
 });

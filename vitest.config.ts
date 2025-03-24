@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention, n/file-extension-in-import */
+/* eslint-disable @typescript-eslint/naming-convention */
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({

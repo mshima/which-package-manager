@@ -1,6 +1,9 @@
 {
   "name": "which-package-manager",
   "version": "1.0.0",
+  "repository": "mshima/which-package-manager",
+  "description": "Detect which package manager is used in the current project",
+  "license": "MIT",
   "keywords": [
     "pm",
     "package-manager",
